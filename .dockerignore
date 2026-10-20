@@ -1,0 +1,6 @@
+.git
+__pycache__
+*.db*
+.pytest_cache
+tests
+docs

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Relay</title>
+<style>
+  :root { --bg:#f7f7f5; --card:#fff; --ink:#1d1d1b; --muted:#6b6b66; --line:#e3e3de; --accent:#2f5d50; --warn:#9a3b2f; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --card:#1f1f1d; --ink:#ecece8; --muted:#9a9a93; --line:#33332f; --accent:#7fb8a6; --warn:#e08a7c; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui, -apple-system, "PingFang SC", "Noto Sans CJK SC", sans-serif; }
+  header { position:sticky; top:0; background:var(--card); border-bottom:1px solid var(--line); padding:10px 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; z-index:2; }
+  header h1 { font-size:17px; margin:0; }
+  #bal { color:var(--muted); font-size:13px; margin-left:auto; }
+  nav { display:flex; gap:4px; padding:8px 16px; overflow-x:auto; }
+  nav button { background:none; border:1px solid var(--line); color:var(--ink); }
+  nav button.on { background:var(--accent); color:var(--card); border-color:var(--accent); }
+  main { max-width:760px; margin:0 auto; padding:8px 16px 48px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:10px 0; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .muted { color:var(--muted); font-size:13px; }
+  .tag { font-size:12px; padding:1px 8px; border:1px solid var(--line); border-radius:99px; color:var(--muted); }
+  button { font:inherit; padding:6px 12px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--card); cursor:pointer; }
+  button.ghost { background:none; color:var(--accent); }
+  button.danger { background:none; color:var(--warn); border-color:var(--warn); }
+  input, select, textarea { font:inherit; width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); }
+  textarea { min-height:90px; }
+  label { display:block; margin:8px 0 3px; font-size:13px; color:var(--muted); }
+  pre { white-space:pre-wrap; word-break:break-word; background:var(--bg); padding:8px; border-radius:8px; max-height:360px; overflow:auto; font-size:13px; }
+  #err { color:var(--warn); padding:0 16px; min-height:1.5em; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Agent Relay</h1>
+  <span class="tag">公开 Alpha · 积分不可提现</span>
+  <span id="bal"></span>
+</header>
+<div id="err"></div>
+
+<section id="login" class="hidden"><main>
+  <div class="card">
+    <h2 style="margin-top:0">Agent 任务互助 · 邀请制试点</h2>
+    <p>发布者把任务和积分预算固定下来；参与者在网页接单，由<b>自己电脑上</b>的客户端调用本地 Agent 执行，按已报告的 token 用量获得积分。积分只用于请求别人的帮助，<b>不能提现</b>。</p>
+    <ul class="muted">
+      <li>任务输入和结果都是<b>公开</b>的。不要提交私人账号凭据、保密审稿材料或未获授权的内部数据。</li>
+      <li>执行者能看到任务明文，也能修改自己的客户端；平台不能证明模型真的被运行过，不是保密计算。</li>
+      <li>只能使用你被允许用于第三方任务的模型资源（例如自己的 API key），不要共享账号或绕过订阅限制。</li>
+      <li>这是 Alpha 试点：可能有故障、规则调整或数据重置；排行榜不代表平台背书。</li>
+    </ul>
+    <label><input type="checkbox" id="ack" style="width:auto"> 我已阅读并同意以上说明</label>
+    <div id="gh-login" class="hidden">
+      <label>邀请码（首次加入需要）</label>
+      <div class="row"><input id="invite" placeholder="XXXXX-XXXXX" style="flex:1"><button data-act="github">用 GitHub 登录</button></div>
+    </div>
+    <div id="dev-login" class="hidden">
+      <label>开发登录（仅本地）</label>
+      <div class="row"><input id="handle" placeholder="handle，例如 alice" style="flex:1"><button data-act="devlogin">进入</button></div>
+    </div>
+  </div>
+</main></section>
+
+<section id="app" class="hidden">
+  <nav>
+    <button data-tab="lobby" class="on">任务大厅</button>
+    <button data-tab="publish">发布</button>
+    <button data-tab="mine">我的</button>
+    <button data-tab="devices">设备</button>
+    <button data-tab="community">贡献榜</button>
+  </nav>
+  <main>
+    <div id="tab-lobby"></div>
+    <div id="tab-publish" class="hidden"></div>
+    <div id="tab-mine" class="hidden"></div>
+    <div id="tab-devices" class="hidden"></div>
+    <div id="tab-community" class="hidden"></div>
+    <div id="detail"></div>
+  </main>
+</section>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
