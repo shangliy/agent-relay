@@ -2,83 +2,109 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f5d50">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Relay">
+<link rel="manifest" href="/static/manifest.json">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/icon.svg">
 <title>Agent Relay</title>
 <style>
-  :root { --bg:#f7f7f5; --card:#fff; --ink:#1d1d1b; --muted:#6b6b66; --line:#e3e3de; --accent:#2f5d50; --warn:#9a3b2f; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --card:#1f1f1d; --ink:#ecece8; --muted:#9a9a93; --line:#33332f; --accent:#7fb8a6; --warn:#e08a7c; } }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui, -apple-system, "PingFang SC", "Noto Sans CJK SC", sans-serif; }
-  header { position:sticky; top:0; background:var(--card); border-bottom:1px solid var(--line); padding:10px 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; z-index:2; }
-  header h1 { font-size:17px; margin:0; }
-  #bal { color:var(--muted); font-size:13px; margin-left:auto; }
-  nav { display:flex; gap:4px; padding:8px 16px; overflow-x:auto; }
-  nav button { background:none; border:1px solid var(--line); color:var(--ink); }
-  nav button.on { background:var(--accent); color:var(--card); border-color:var(--accent); }
-  main { max-width:760px; margin:0 auto; padding:8px 16px 48px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:10px 0; }
+  :root { --bg:#f6f6f3; --card:#fff; --ink:#1c1c1a; --muted:#6b6b65; --line:#e4e4de; --accent:#2f5d50; --accent-ink:#fff;
+          --soft:#e8f0ec; --warn:#a13d30; --ok:#2f7a4f; --radius:14px; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#131312; --card:#1d1d1b; --ink:#ecece7; --muted:#9b9b94; --line:#30302c;
+          --accent:#86c0ad; --accent-ink:#10201b; --soft:#1f2e29; --warn:#e48a7c; --ok:#7cc79a; } }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; background:var(--bg); color:var(--ink); }
+  body { font:16px/1.5 system-ui, -apple-system, "PingFang SC", "Noto Sans CJK SC", sans-serif; padding-bottom:calc(76px + env(safe-area-inset-bottom)); }
+  header { position:sticky; top:0; z-index:5; background:var(--card); border-bottom:1px solid var(--line);
+           padding:calc(10px + env(safe-area-inset-top)) 16px 10px; display:flex; align-items:center; gap:10px; }
+  header img { width:28px; height:28px; }
+  header b { font-size:17px; }
+  .chip { margin-left:auto; font-size:13px; background:var(--soft); color:var(--accent); padding:4px 10px; border-radius:99px; white-space:nowrap; }
+  main { max-width:720px; margin:0 auto; padding:12px 16px 24px; }
+  nav.tabs { position:fixed; bottom:0; left:0; right:0; z-index:5; display:flex; background:var(--card); border-top:1px solid var(--line);
+             padding-bottom:env(safe-area-inset-bottom); }
+  nav.tabs button { flex:1; background:none; border:0; color:var(--muted); padding:8px 0 10px; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:2px; }
+  nav.tabs button svg { width:24px; height:24px; }
+  nav.tabs button.on { color:var(--accent); font-weight:600; }
+  @media (min-width: 760px) {
+    body { padding-bottom:0; }
+    nav.tabs { position:sticky; top:57px; bottom:auto; max-width:720px; margin:0 auto; border:1px solid var(--line); border-top:0; border-radius:0 0 var(--radius) var(--radius); }
+    nav.tabs button { flex-direction:row; justify-content:center; font-size:14px; gap:6px; padding:10px 0; }
+    nav.tabs button svg { width:18px; height:18px; }
+  }
+  h2 { font-size:20px; margin:8px 0 12px; }
+  h3 { font-size:16px; margin:20px 0 8px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin:10px 0; }
   .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .muted { color:var(--muted); font-size:13px; }
-  .tag { font-size:12px; padding:1px 8px; border:1px solid var(--line); border-radius:99px; color:var(--muted); }
-  button { font:inherit; padding:6px 12px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--card); cursor:pointer; }
+  .grow { flex:1; min-width:0; }
+  .muted { color:var(--muted); font-size:14px; }
+  .small { font-size:13px; }
+  .tag { font-size:12px; padding:2px 8px; border-radius:99px; background:var(--bg); border:1px solid var(--line); color:var(--muted); white-space:nowrap; }
+  .tag.ok { color:var(--ok); border-color:currentColor; }
+  .tag.warn { color:var(--warn); border-color:currentColor; }
+  .big { font-size:28px; font-weight:700; }
+  button, .btn { font:inherit; min-height:44px; padding:8px 16px; border-radius:12px; border:1px solid var(--accent); background:var(--accent);
+                 color:var(--accent-ink); cursor:pointer; font-weight:600; }
   button.ghost { background:none; color:var(--accent); }
   button.danger { background:none; color:var(--warn); border-color:var(--warn); }
-  input, select, textarea { font:inherit; width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); }
-  textarea { min-height:90px; }
-  label { display:block; margin:8px 0 3px; font-size:13px; color:var(--muted); }
-  pre { white-space:pre-wrap; word-break:break-word; background:var(--bg); padding:8px; border-radius:8px; max-height:360px; overflow:auto; font-size:13px; }
-  #err { color:var(--warn); padding:0 16px; min-height:1.5em; }
-  .hidden { display:none; }
+  button.block { width:100%; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  input, select, textarea { font:inherit; width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg); color:var(--ink); }
+  textarea { min-height:110px; resize:vertical; }
+  input[type=checkbox] { width:22px; min-height:22px; height:22px; flex:none; accent-color:var(--accent); }
+  input[type=range] { padding:0; accent-color:var(--accent); }
+  label.f { display:block; margin:14px 0 6px; font-size:14px; color:var(--muted); font-weight:600; }
+  label.check { display:flex; gap:10px; align-items:flex-start; margin:12px 0; font-size:14px; }
+  details { margin-top:14px; } summary { cursor:pointer; color:var(--accent); font-weight:600; min-height:32px; }
+  pre, code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
+  pre { white-space:pre-wrap; word-break:break-word; background:var(--bg); border:1px solid var(--line); padding:10px; border-radius:10px; max-height:420px; overflow:auto; font-size:13px; margin:8px 0; }
+  .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; }
+  @media (min-width: 560px) { .grid { grid-template-columns:repeat(3, 1fr); } }
+  .pick { text-align:left; background:var(--card); color:var(--ink); border:1px solid var(--line); font-weight:400; padding:10px 12px; min-height:64px; }
+  .pick b { display:block; font-size:15px; } .pick span { font-size:12px; color:var(--muted); }
+  .pick.on { border-color:var(--accent); background:var(--soft); }
+  .seg { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; }
+  .seg button { background:var(--card); color:var(--ink); border:1px solid var(--line); font-weight:500; min-height:36px; padding:6px 14px; white-space:nowrap; }
+  .seg button.on { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .steps { list-style:none; padding:0; margin:0; counter-reset:s; }
+  .steps li { display:flex; gap:12px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); }
+  .steps li:last-child { border-bottom:0; }
+  .steps .n { width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-size:14px; font-weight:700; background:var(--bg); border:1px solid var(--line); flex:none; }
+  .steps .done .n { background:var(--ok); color:var(--card); border-color:var(--ok); }
+  .sticky-cta { position:sticky; bottom:calc(76px + env(safe-area-inset-bottom)); background:linear-gradient(transparent, var(--bg) 30%); padding-top:16px; }
+  @media (min-width: 760px) { .sticky-cta { bottom:0; } }
+  #toast { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(92px + env(safe-area-inset-bottom)); z-index:9; background:var(--ink); color:var(--bg);
+           padding:10px 16px; border-radius:12px; font-size:14px; max-width:calc(100% - 32px); opacity:0; pointer-events:none; transition:opacity .2s; }
+  #toast.show { opacity:1; }
+  #toast.err { background:var(--warn); color:#fff; }
+  .hidden { display:none !important; }
+  a { color:var(--accent); }
+  .center { text-align:center; }
+  .empty { text-align:center; color:var(--muted); padding:28px 8px; }
+  .pulse { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--ok); margin-right:6px; animation:p 1.4s infinite; }
+  @keyframes p { 50% { opacity:.3; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>Agent Relay</h1>
-  <span class="tag">公开 Alpha · 积分不可提现</span>
-  <span id="bal"></span>
+  <img src="/static/icon.svg" alt="">
+  <b>Agent Relay</b>
+  <span class="chip hidden" id="bal"></span>
 </header>
-<div id="err"></div>
 
-<section id="login" class="hidden"><main>
-  <div class="card">
-    <h2 style="margin-top:0">Agent 任务互助 · 邀请制试点</h2>
-    <p>发布者把任务和积分预算固定下来；参与者在网页接单，由<b>自己电脑上</b>的客户端调用本地 Agent 执行，按已报告的 token 用量获得积分。积分只用于请求别人的帮助，<b>不能提现</b>。</p>
-    <ul class="muted">
-      <li>任务输入和结果都是<b>公开</b>的。不要提交私人账号凭据、保密审稿材料或未获授权的内部数据。</li>
-      <li>执行者能看到任务明文，也能修改自己的客户端；平台不能证明模型真的被运行过，不是保密计算。</li>
-      <li>只能使用你被允许用于第三方任务的模型资源（例如自己的 API key），不要共享账号或绕过订阅限制。</li>
-      <li>这是 Alpha 试点：可能有故障、规则调整或数据重置；排行榜不代表平台背书。</li>
-    </ul>
-    <label><input type="checkbox" id="ack" style="width:auto"> 我已阅读并同意以上说明</label>
-    <div id="gh-login" class="hidden">
-      <label>邀请码（首次加入需要）</label>
-      <div class="row"><input id="invite" placeholder="XXXXX-XXXXX" style="flex:1"><button data-act="github">用 GitHub 登录</button></div>
-    </div>
-    <div id="dev-login" class="hidden">
-      <label>开发登录（仅本地）</label>
-      <div class="row"><input id="handle" placeholder="handle，例如 alice" style="flex:1"><button data-act="devlogin">进入</button></div>
-    </div>
-  </div>
-</main></section>
+<nav class="tabs hidden" id="tabs">
+  <button data-go="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>首页</button>
+  <button data-go="lobby"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>接单</button>
+  <button data-go="publish"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>发布</button>
+  <button data-go="mine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>我的</button>
+  <button data-go="community"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/></svg>榜单</button>
+</nav>
 
-<section id="app" class="hidden">
-  <nav>
-    <button data-tab="lobby" class="on">任务大厅</button>
-    <button data-tab="publish">发布</button>
-    <button data-tab="mine">我的</button>
-    <button data-tab="devices">设备</button>
-    <button data-tab="community">贡献榜</button>
-  </nav>
-  <main>
-    <div id="tab-lobby"></div>
-    <div id="tab-publish" class="hidden"></div>
-    <div id="tab-mine" class="hidden"></div>
-    <div id="tab-devices" class="hidden"></div>
-    <div id="tab-community" class="hidden"></div>
-    <div id="detail"></div>
-  </main>
-</section>
-
+<main id="view"></main>
+<div id="toast"></div>
 <script src="/static/app.js"></script>
 </body>
 </html>

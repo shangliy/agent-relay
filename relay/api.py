@@ -71,7 +71,7 @@ class CreateTaskBody(BaseModel):
 
 
 class ClaimBody(BaseModel):
-    device_id: str
+    device_id: str | None = None  # omitted: server picks a ready, compatible computer
 
 
 class ReopenBody(BaseModel):
@@ -296,6 +296,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/v2/tasks/{task_id}")
     def get_task(task_id: str, acct=Depends(user), conn=Depends(db)):
         return service.get_task(conn, task_id)
+
+    @app.get("/v2/supply")
+    def get_supply(acct=Depends(user), conn=Depends(db)):
+        return service.supply(conn)
 
     @app.post("/v2/tasks/{task_id}/claim")
     def claim(task_id: str, body: ClaimBody, acct=Depends(user), conn=Depends(db),

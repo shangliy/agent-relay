@@ -377,7 +377,34 @@ def create_task(conn, settings: Settings, account: Account, req: dict, idem_key:
     return resp
 
 
-def claim_task(conn, settings: Settings, account: Account, task_id: str, device_id: str, idem_key: str | None) -> dict:
+def _pick_device(conn, account: Account, task: sqlite3.Row, spec: dict) -> sqlite3.Row:
+    """One-tap claim from a phone: choose the most recently seen ready, idle,
+    compatible device. Errors name the most actionable reason."""
+    devices = conn.execute(
+        "SELECT * FROM devices WHERE account_id=? AND revoked_at IS NULL ORDER BY last_seen_at DESC", (account.id,)
+    ).fetchall()
+    if not devices:
+        raise errors.RelayError("NO_DEVICE", "No computer is connected to your account", 409,
+                                "Open the Devices tab and connect a computer first.")
+    ready = [d for d in devices if _device_ready(d)]
+    if not ready:
+        raise errors.device_not_ready()
+    problems = []
+    for d in ready:
+        problem = _capability_problem(json.loads(d["capabilities_json"]), task["adapter"], task["model"], spec["required_tools"])
+        if problem:
+            problems.append(problem)
+            continue
+        if conn.execute(f"SELECT 1 FROM runs WHERE device_id=? AND state IN {_ACTIVE_SQL}", (d["id"],)).fetchone():
+            problems.append("busy")
+            continue
+        return d
+    if "busy" in problems:
+        raise errors.invalid_state("Your compatible computer is already running a task; wait for it to finish")
+    raise errors.capability_mismatch(next(p for p in problems if p != "busy"))
+
+
+def claim_task(conn, settings: Settings, account: Account, task_id: str, device_id: str | None, idem_key: str | None) -> dict:
     if not settings.allow_new_claims:
         raise errors.disabled("Claiming tasks")
     req = {"task_id": task_id, "device_id": device_id}
@@ -393,20 +420,24 @@ def claim_task(conn, settings: Settings, account: Account, task_id: str, device_
             raise errors.task_already_claimed()
         if task["publisher_id"] == account.id:
             raise errors.forbidden("You cannot claim your own task")
-        dev = conn.execute("SELECT * FROM devices WHERE id=? AND account_id=?", (device_id, account.id)).fetchone()
-        if dev is None:
-            raise errors.not_found("Device")
-        if dev["revoked_at"] is not None:
-            raise errors.device_revoked()
-        if not _device_ready(dev):
-            raise errors.device_not_ready()
         spec = json.loads(task["spec_json"])
-        problem = _capability_problem(json.loads(dev["capabilities_json"]), task["adapter"], task["model"], spec["required_tools"])
-        if problem:
-            raise errors.capability_mismatch(problem)
-        busy = conn.execute(f"SELECT 1 FROM runs WHERE device_id=? AND state IN {_ACTIVE_SQL}", (device_id,)).fetchone()
-        if busy:
-            raise errors.invalid_state("This device already has an active run")
+        if device_id is None:
+            dev = _pick_device(conn, account, task, spec)
+            device_id = dev["id"]
+        else:
+            dev = conn.execute("SELECT * FROM devices WHERE id=? AND account_id=?", (device_id, account.id)).fetchone()
+            if dev is None:
+                raise errors.not_found("Device")
+            if dev["revoked_at"] is not None:
+                raise errors.device_revoked()
+            if not _device_ready(dev):
+                raise errors.device_not_ready()
+            problem = _capability_problem(json.loads(dev["capabilities_json"]), task["adapter"], task["model"], spec["required_tools"])
+            if problem:
+                raise errors.capability_mismatch(problem)
+            busy = conn.execute(f"SELECT 1 FROM runs WHERE device_id=? AND state IN {_ACTIVE_SQL}", (device_id,)).fetchone()
+            if busy:
+                raise errors.invalid_state("This device already has an active run")
 
         now = config.now()
         run_id = _id("run")
@@ -428,7 +459,8 @@ def claim_task(conn, settings: Settings, account: Account, task_id: str, device_
              now + config.ASSIGN_LEASE_S + spec["max_runtime_s"] + config.LEASE_GRACE_S, now),
         )
         _event(conn, account.id, "task", task_id, "claimed", run_id=run_id, device_id=device_id, fencing_token=fencing)
-        resp = {"task_id": task_id, "run_id": run_id, "fencing_token": fencing, "state": "assigned"}
+        resp = {"task_id": task_id, "run_id": run_id, "fencing_token": fencing, "state": "assigned",
+                "device_id": device_id, "device_name": dev["name"]}
         _idem_put(conn, "claim", account.id, idem_key, req, resp)
     return resp
 
@@ -532,6 +564,21 @@ def get_task(conn, task_id: str) -> dict:
     out["spec"] = json.loads(task["spec_json"])
     out["runs"] = runs
     return out
+
+
+def supply(conn) -> dict:
+    """What online computers can run right now, aggregated (no identities).
+    Lets publishers pick a model someone can actually execute."""
+    counts: dict[tuple[str, str], int] = {}
+    for d in conn.execute("SELECT * FROM devices WHERE revoked_at IS NULL AND ready=1 AND last_seen_at >= ?",
+                          (config.now() - config.DEVICE_READY_WINDOW_S,)):
+        for adapter, info in json.loads(d["capabilities_json"]).get("adapters", {}).items():
+            if info.get("usage") != "known":
+                continue
+            for model in info.get("models") or []:
+                counts[(adapter, model)] = counts.get((adapter, model), 0) + 1
+    return {"options": [{"adapter": a, "model": m, "devices": n}
+                        for (a, m), n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]}
 
 
 # --------------------------------------------------------------------------- runs (device side)

@@ -172,3 +172,36 @@ def test_task_list_is_summary_and_paginated(relay):
     assert len(page2["tasks"]) == 2 and page2["next_cursor"] is None
     ids = {t["id"] for t in page1["tasks"] + page2["tasks"]}
     assert len(ids) == 5
+
+
+def test_one_tap_claim_picks_compatible_idle_device(relay):
+    a, b = relay.login("alice"), relay.login("bob")
+    t1 = relay.create(a, budget_rp=5).json()["task_id"]
+    t2 = relay.create(a, budget_rp=5).json()["task_id"]
+    t3 = relay.create(a, budget_rp=5).json()["task_id"]
+
+    r = relay.c.post(f"/v2/tasks/{t1}/claim", headers=b, json={})
+    assert r.json()["error"]["code"] == "NO_DEVICE"
+    other = {"adapters": {"claude_code": {"models": ["*"], "usage": "known"}}, "tools": []}
+    relay.pair(b, caps=other)
+    assert relay.c.post(f"/v2/tasks/{t1}/claim", headers=b, json={}).json()["error"]["code"] == "CAPABILITY_MISMATCH"
+
+    dev_id, _ = relay.pair(b)
+    r = relay.c.post(f"/v2/tasks/{t1}/claim", headers=b, json={})
+    assert r.status_code == 200 and r.json()["device_id"] == dev_id
+    # The only compatible device is busy now.
+    assert relay.c.post(f"/v2/tasks/{t2}/claim", headers=b, json={}).json()["error"]["code"] == "INVALID_STATE"
+    dev2, _ = relay.pair(b)
+    assert relay.c.post(f"/v2/tasks/{t2}/claim", headers=b, json={}).json()["device_id"] == dev2
+    assert relay.c.post(f"/v2/tasks/{t3}/claim", headers=b, json={}).json()["error"]["code"] == "INVALID_STATE"
+
+
+def test_supply_aggregates_online_models(relay, clock):
+    b = relay.login("bob")
+    relay.pair(b)
+    relay.pair(relay.login("carol"))
+    relay.pair(b, caps={"adapters": {"codex": {"models": ["gpt-x"], "usage": "unknown"}}, "tools": []})
+    s = relay.c.get("/v2/supply", headers=b).json()["options"]
+    assert s == [{"adapter": "echo", "model": "echo-1", "devices": 2}]
+    clock.advance(config.DEVICE_READY_WINDOW_S + 1)
+    assert relay.c.get("/v2/supply", headers=b).json()["options"] == []
